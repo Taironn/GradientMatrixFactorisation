@@ -11,18 +11,24 @@ namespace GradientMatrixFactorisation
 	{
 		public const int movie_count = 3952 + 1;
 		public const int user_count = 6040 + 1;
-		public static double epsilon = 0.005;
+		public double epsilon = 0.005;
+		public double global_average;
 
 		public double[][] U, V;
-		private Tuple<int, int, int>[] ratings;
+		public double[] U_average, V_average;
+		private Tuple<int, int, double>[] ratings;
 		//private Tuple<int, int, int>[] testset;
 		private Tuple<int, int>[] test;
 		private int dimension;
-		public VectorialImplementation(int dimension, Tuple<int, int, int>[] ratings, Tuple<int, int>[] test)
+		public VectorialImplementation(int dimension, Tuple<int, int, double>[] ratings, Tuple<int, int>[] test, 
+			double global_average, double[] U_average, double[] V_average)
 		{
 			this.ratings = ratings;
 			this.test = test;
 			this.dimension = dimension;
+			this.global_average = global_average;
+			this.U_average = U_average;
+			this.V_average = V_average;
 			//this.testset = testset;
 			Random random = new Random();
 
@@ -32,7 +38,7 @@ namespace GradientMatrixFactorisation
 			{
 				U[i] = Enumerable
 					.Repeat(1.0d, dimension)
-					.Select(x => random.NextDouble() )//* Math.Sqrt(5))
+					.Select(x => random.NextDouble())//* Math.Sqrt(5))
 					.ToArray();
 			}
 
@@ -41,14 +47,15 @@ namespace GradientMatrixFactorisation
 			{
 				V[i] = Enumerable
 					.Repeat(1.0d, dimension)
-					.Select(x => random.NextDouble() )//* Math.Sqrt(5))
+					.Select(x => random.NextDouble())//* Math.Sqrt(5))
 					.ToArray();
 			}
 
 		}
 
-		public void iterateAlgorithm(double lambda = -1.0)
+		public void iterateAlgorithm(double epsilon, double lambda = -1.0)
 		{
+			this.epsilon = epsilon;
 			if (lambda <= 0)
 				foreach (var item in ratings)
 				{
@@ -133,7 +140,7 @@ namespace GradientMatrixFactorisation
 		{
 			foreach (var item in test)
 			{
-				Console.WriteLine("{0} {1} -> {2}", item.Item1, item.Item2, dot(U[item.Item1],V[item.Item2]));
+				Console.WriteLine("{0} {1} -> {2}", item.Item1, item.Item2, dot(U[item.Item1], V[item.Item2]));
 				Thread.Sleep(500);
 			}
 		}
@@ -147,14 +154,19 @@ namespace GradientMatrixFactorisation
 				//The current estimation of the model
 				double cur_value = dot(U[item.Item1], V[item.Item2]);
 
+				//Corrigate back, to original scale
+				cur_value += global_average;
+				cur_value += U_average[item.Item1];
+				cur_value += V_average[item.Item2];
+
 				//The current error of the model
 				double cur_diff = item.Item3 - cur_value;
 
 				//Square error
-				error += (cur_diff * cur_diff) / ratings.Length;
+				error += (cur_diff * cur_diff);
 			}
 
-			return error;
+			return Math.Sqrt(error / ratings.Length);
 		}
 	}
 }
